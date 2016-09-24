@@ -7,6 +7,8 @@ library(corrplot) # for (scaled) second derivative matrix and correlation matrix
 
 #--------------------------- Functions -------------------------------------------
 
+# Calucates distances between two sets of coordinates
+# X is a by 2 matrix, Y is b by 2 matrix, output is a by b matrix
 distances <- function (X, Y) {
   ## X and Y are 2-column matrices of coordinates
   onerow <- function (xy) {
@@ -18,23 +20,23 @@ distances <- function (X, Y) {
   t(apply(X, 1, onerow))
 }
 
-# Calculates log(\prod_t\prod_k g_{itk}(s)) for a single individual for all s in mesh
+# Calculates log(P_i(s)) for a single individual for all s in mesh
 # wi is ith row of binary proximity capture history (ith individual's capture history)
-binprox.log.gi.si = function(wi,log.gk,log.gk1) {
-  delta=rep(0,dim(log.gk)[1])
+# of length nt, and with detector number in non-zero elements
+binprox.log.Pi.si = function(wi,log.gtk,log.gtk1) {
+  delta=rep(0,dim(log.gtk)[1])
   delta[wi[wi>0]]=1
-  log.gi.si <- delta %*% log.gk  + (1-delta) %*% log.gk1 # log(\prod_k g_itk(s))
-  return(log.gi.si)
+  log.Pi.si <- delta %*% log.gtk  + (1-delta) %*% log.gtk1 # log(\prod_k g_itk(s))
+  return(log.Pi.si)
 }
 
-
-# Calculates log(\prod_t\prod_k g_{itk}(s)) for all individuals for all s in mesh
+# Calculates log(P_i(s)) for all individuals for all s in mesh
 # capthist is n by nt binary proximity capture history matrix
-# log.gk and log.gk1 are K by M matrices
+# log.gtk and log.gtk1 are K by M matrices
 # returns an n by M matrix
-binprox.log.gi.s = function(capthist,log.gk,log.gk1) {
-  log.gi.s=apply(capthist, 1, binprox.log.gi.si,log.gk=log.gk,log.gk1=log.gk1)
-  return(t(log.gi.s))
+binprox.log.Pi.s = function(capthist,log.gtk,log.gtk1) {
+  log.Pi.s=apply(capthist, 1, binprox.log.Pi.si,log.gtk=log.gtk,log.gtk1=log.gtk1)
+  return(t(log.Pi.s))
 }
 
 #----------------------------------------------------------------------
@@ -113,34 +115,31 @@ plot(capthist, border=sigma, tracks=TRUE, gridlines=FALSE,rad=3,,add=TRUE)
 # calculate distances from each detector to each mesh point
 dist=distances(dets,mesh)
 
-# Probabilities for each detector and each mask point
-# gk, log.gk and log.gk1 are all K x M matrices
-gk <- g0 * exp(-dist^2 / 2 / sigma^2)
-log.gk <- log(gk) # for use below
-log.gk1 <- log(1-gk) # for use below
+# Probabilities for each detector and each mesh point (assumed same at all times)
+# gk, log.gtk and log.gtk1 are all K x M matrices
+gtk <- g0 * exp(-dist^2 / 2 / sigma^2)
+log.gtk <- log(gtk) # for use below
+log.gtk1 <- log(1-gtk) # for use below
 
 # probability of being caught at least once if at mesh vertex s of M
-p..s <- 1 - apply(1-gk, 2, prod) ^ nt  # vector of length M
+# vector of length M
+p..s <- 1 - apply(1-gtk, 2, prod) ^ nt  
 
 # calculate likelihoood components:
 
 # Lambda.tilde
 Lambda.tilde = sum(alpha*lambda*p..s);Lambda.tilde
 
-# calculate G_i(s)
-log.gi.s=binprox.log.gi.s(capthist,log.gk,log.gk1);dim(log.gi.s)
-Gi.s=exp(log.gi.s)
-Pi.s=t(alpha*lambda*t(Gi.s)) # transposing to multiply by row, not colum
+# calculate P_i(s)
+log.Pi.s=binprox.log.Pi.s(capthist,log.gtk,log.gtk1);dim(log.Pi.s)
+Pi.s=exp(log.Pi.s)
+Pi.s=t(alpha*lambda*t(Pi.s)) # transposing to multiply by row, not colum
 Pi=apply(Pi.s,1,sum);Pi
-
-# log-likelihood and likelihood:
-loglik = -Lambda.tilde + sum(log(Pi)); loglik
-lik=exp(loglik); lik
 
 # First derivatives w.r.t. lambda
 d.dlambda=(1/Pi) %*% Pi.s - alpha*lambda*p..s
-#d.dlambda2=(1/Pi) %*% (alpha*lambda*exp(log.gi.s)) - alpha*lambda*p..s # (this is not correct)
-#d.dlambda=alpha*lambda*((1/Pi) %*% exp(log.gi.s)) - alpha*lambda*p..s # (another way of calculating)
+#d.dlambda2=(1/Pi) %*% (alpha*lambda*Pi.s) - alpha*lambda*p..s # (this is not correct)
+#d.dlambda=alpha*lambda*((1/Pi) %*% Pi.s) - alpha*lambda*p..s # (another way of calculating)
 # Plot the first derivatives:
 covariates(GMRFmesh)$d.dlambda=as.vector(d.dlambda)
 plotcovariate(GMRFmesh,covariate="d.dlambda",main="First derivatives")
@@ -150,42 +149,54 @@ plot(capthist,tracks=TRUE,rad=2,cappar=list(cex=0.75),add=TRUE)
 
 
 # Second derivatives w.r.t. lambda
-d2.dlambda2.k = alpha*lambda*((1/Pi) %*% exp(log.gi.s))^2
-d2.dlambda2.j = -alpha*lambda
-d2.dlambda2 = as.matrix(d2.dlambda2.j,nrow=1,drop=FALSE) %*% as.matrix(d2.dlambda2.k,ncol=1,drop=FALSE)
+d2.dlambda2.k = alpha*lambda*((1/Pi) %*% Pi.s)
+d2.dlambda2.j = -alpha*lambda*((1/Pi) %*% Pi.s)
+#d2.dlambda2 = as.matrix(d2.dlambda2.j,nrow=1,drop=FALSE) %*% as.matrix(d2.dlambda2.k,ncol=1,drop=FALSE)
+d2.dlambda2 = t(d2.dlambda2.j) %*% d2.dlambda2.k
 dim(d2.dlambda2)
 diag(d2.dlambda2)=diag(d2.dlambda2) + d.dlambda
+det(d2.dlambda2)
+# Zero determinant is not good!
 
-# Look at structure of 2nd derivative matrix 
-# Warning: if M not very small, this is not very useful - difficult to make out
+# Try to look at structure of 2nd derivative matrix 
 quartz()
-div=max(abs(range(d2.dlambda))) # scale so in [-1, 1], so can use corrplot to display
-corrplot(d2.dlambda/div,method="ellipse", main="scaled 2nd derivatives", cex.main=0.75)
+#div=max(abs(range(d2.dlambda2))) # scale so in [-1, 1], so can use corrplot to display
+#corrplot(d2.dlambda2/div,method="ellipse", main="scaled 2nd derivatives", cex.main=0.75)
+image.plot(1:M,1:M,d2.dlambda2)
 
-# Calculate first derivatives of GMRF
-f.e = dmvnorm(e, mean=rep(0,M), sigma=Sigma.e)
+
+# Calculate first derivatives of log(xi)
+#f.e = dmvnorm(e, mean=rep(0,M), sigma=Sigma.e)
 tau.e=solve(Sigma.e)
 #quartz()
 #div=max(abs(range(tau.e))) # scale so in [-1, 1], so can use corrplot to display
 #corrplot(tau.e/div,method="ellipse", main="scaled precision", cex.main=0.75)
-d.de = -f.e * tau.e %*% e
+#d.de = -f.e * tau.e %*% e
+dlogf.de = tau.e %*% e
 # plot for info:
-covariates(GMRFmesh)$d.de=d.de
-plotcovariate(GMRFmesh,covariate="d.de",main="GMRF first derivatives",contour=FALSE)
+covariates(GMRFmesh)$dlogf.de=dlogf.de
+plotcovariate(GMRFmesh,covariate="dlogf.de",main="GMRF first derivatives",contour=FALSE)
 plot(dets,add=TRUE)
 
 # Calculate second derivatives for GMRF
-d2.de2 = f.e * tau.e %*% e %*% t(e) %*% tau.e - tau.e
+#d2.de2 = f.e * tau.e %*% e %*% t(e) %*% tau.e - tau.e
+d2logf.de2 = tau.e
 # plot for info:
 quartz()
-div=max(abs(range(d2.de2))) # scale so in [-1, 1], so can use corrplot to display
-corrplot(d2.de2/div,method="ellipse", main="scaled GMRF 2nd derivatives", cex.main=0.75)
-hist(d2.de2)
-det(d2.de2)
+#div=max(abs(range(d2logf.de2))) # scale so in [-1, 1], so can use corrplot to display
+#corrplot(d2logf.de2/div,method="ellipse", main="scaled GMRF 2nd derivatives", cex.main=0.75)
+image.plot(1:M,1:M,d2logf.de2)
+hist(d2logf.de2)
+det(d2logf.de2)
 # Hmm ... machine preision problems? Else an error?
 
+# Look at diagonal of 2nd derivative matrix in space:
+covariates(GMRFmesh)$d2logf.de2=diag(d2logf.de2)
+plotcovariate(GMRFmesh,covariate="d2logf.de2",main="GMRF diagnonal 2nd derivatives",contour=FALSE)
+plot(dets,add=TRUE)
+
 # Hessian:
-d.dlambda.d.de = t(d.dlambda) %*% t(d.de)
-H = d2.dlambda2*f.e + d.dlambda.d.de + t(d.dlambda.d.de) + lik*d2.de2
+H = d2.dlambda2 + d2logf.de2
+image.plot(1:M,1:M,H)
 det(H)
-# ... well that did not work! Hopefully machine precision issue?
+# ... well that determinant is not good either! Hopefully machine precision issue?
