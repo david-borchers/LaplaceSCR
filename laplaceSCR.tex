@@ -1,0 +1,212 @@
+\documentclass[a4paper]{article}
+
+\usepackage[colorinlistoftodos,linecolor=gray,backgroundcolor=white]{todonotes}
+\usepackage{graphicx,epsfig,amssymb,amsmath,bm,bbm,natbib,xcolor}
+
+\title{SCR Likelihood with a spatial log Gaussian Cox process and GMRF}
+
+\author{David \and Finn}
+
+\date{\today}
+
+
+
+\begin{document}
+\maketitle
+
+
+\section{Likelihood function}
+
+\subsection{Detection probability}
+\label{sec:detprob}
+
+Let $\omega_{itk}$ be the ``capture response'' recorded on occasion $t\in\{1,\ldots,T\}$ by detector $k\in\{1,\ldots,K\}$ for individual $i$. This could be binary (1 or 0) if all that is recorded is whether or not the individual was detected at all on the occasion by the detector, or it could be a count if the detector is able to record the number of times that the individual was detected on the occasion. Let $p_{itk}(\boldsymbol{s})$ be the probability of observing $\omega_{itk}$ for an individual at $\boldsymbol{s}$. (Note: subscript $i$ is there as a shorthand way of denoting that this function is evaluated for capture response $\omega_{itk}$.)
+
+Let $g_{tk}(\boldsymbol{s})$ be the probability that on occasion $t$ detector $k$ detects an individual with activity centre $\boldsymbol{s}$, i.e., $g_{tk}(\boldsymbol{s})=\mathbb{P}(\omega_{itk}>0|s)$, and $p_{\cdot\cdot}(\boldsymbol{s})$ be the probability that an individual with activity centre $\boldsymbol{s}$ was detected by at least one detector on at least one occasion. Then
+
+\begin{eqnarray}
+p_{\cdot\cdot}(\boldsymbol{s})&=&1-\prod_t\prod_k\left\{1-g_{tk}(\boldsymbol{s})\right\}
+\end{eqnarray}
+
+
+\subsection{Poisson point process}
+
+Assume that individuals occur in the plane according to a Poisson process with intensity $\lambda(\boldsymbol{s})$ at location $\boldsymbol{s}$. If an individual at $\boldsymbol{s}$ is detected with probability $p_{\cdot\cdot}(\boldsymbol{s})$ then detected individuals occur in the plane according to a Poisson process with intensity  $\tilde{\lambda}(\boldsymbol{s})=\lambda(\boldsymbol{s})p_{\cdot\cdot}(\boldsymbol{s})$. Define $\Lambda=\int_S\lambda(\boldsymbol{s}) ds$ and $\tilde{\Lambda}=\int_S\tilde{\lambda}(\boldsymbol{s}) ds$.
+
+\subsection{Likelihood}
+
+It follows from the above that the number of individuals detected ($n$) is a Poisson random variable with rate parameter $\tilde{\Lambda}$. Let $P_{it}(\boldsymbol{s}_i)$  be the probability of observing $\{\omega_{itk}\}_k=(\omega_{it1},\ldots,\omega_{itK})$ on occasion $t$ for an individual with activity centre at $\boldsymbol{s}$. (If individuals are detected independently between detectors then $P_{it}(\boldsymbol{s}_i)=\prod_kp_{itk}(\boldsymbol{s}_i)$.) If individuals are detected independently across occasions, then the probability of observing the capture response data $\Omega_i=\{\omega_{itk}\}_{tk}$ (outer subscript shows indices ``spanned'' by set) for an individual with activity centre at $\boldsymbol{s}_i$ is $\prod_tP_{it}(\boldsymbol{s}_i)$. The conditional probability, given detection by at least one detector on at least one occasion is $[\prod_tP_{it}(\boldsymbol{s}_i)]/p_{\cdot\cdot}(\boldsymbol{s}_i)=P_i(\boldsymbol{s}_i)/p_{\cdot\cdot}(\boldsymbol{s}_i)$, where $P_i(\boldsymbol{s}_i)=\prod_tP_{it}(\boldsymbol{s}_i)$. And the probability density function of detected points, evaluated at $\boldsymbol{s}_i$ is $\tilde{\lambda}(\boldsymbol{s}_i)/\tilde{\Lambda}$. So if we define $\boldsymbol{S}=(\boldsymbol{s}_1,\ldots,\boldsymbol{s}_n)$, the probability of observing $\Omega=\{\omega_{itk}\}_{itk}$ can be written as
+\begin{eqnarray}
+\mathbb{P}(\Omega|S)&=&
+\frac{\tilde{\Lambda}^ne^{-\tilde{\Lambda}}}{n!}\prod_{i=1}^n\frac{P_i(\boldsymbol{s}_i)}{p_{\cdot\cdot}(s_i)}\frac{\tilde{\lambda}(s_i)}{\tilde{\Lambda}}
+\nonumber \\
+&\propto&e^{-\tilde{\Lambda}}\prod_{i=1}^nP_i(\boldsymbol{s}_i)\lambda(s_i)
+\end{eqnarray}
+\noindent
+We can't use this because we don't observe $\boldsymbol{s}$, so we need to marginalise over $\boldsymbol{s}$, and since the $\boldsymbol{s}_i$s are iid, we can write this as:
+\begin{eqnarray}
+\mathbb{P}(\Omega)
+&\propto&e^{-\tilde{\Lambda}}\prod_{i=1}^n\int_{s}P_i(\boldsymbol{s})\lambda(\boldsymbol{s})ds
+\end{eqnarray}
+
+\subsection{Discrete approximation to the likelihood}
+
+Write $P_i(\boldsymbol{s})\lambda(\boldsymbol{s})$ as $\exp\{\eta(s;\lambda,\boldsymbol{\theta},\Omega_i)\}$, where $\boldsymbol{\theta}$ is the parameters of $p_{itk}(\boldsymbol{s})$. (The reason for writing it thus is that the likelihood then involves $\log\left[\lambda(\boldsymbol{s}_j)\right]$, which is equal some fixed effect plus a GMRF random variable. Laplace approximation involves the second derivatives with respect to the GMRF variables, which is equivalent to the second derivatives with respect to the $\log\left[\lambda(\boldsymbol{s}_j)\right]$s - see below.) We now approximate the integral by a weighted sum of $\exp\{\eta(s;\lambda,\boldsymbol{\theta},\Omega_i)\}$ evaluated at a discrete set of $M$ points $\boldsymbol{s}=(\boldsymbol{s}_1,\ldots,s_M)$ spanning the integration area and weight $\alpha_j$ at location $\boldsymbol{s}_j$, and this is the approximate likelihood for $\lambda,\boldsymbol{\theta}$:
+\begin{eqnarray}
+{\cal L}(\lambda,\boldsymbol{\theta})
+&\approx&e^{-\tilde{\Lambda}}\prod_i\sum_j\alpha_j\exp\{\eta(\boldsymbol{s}_j;\lambda,\boldsymbol{\theta},\Omega_i)\}) 
+\label{eq:L(lambda)} \\
+&=&\exp
+\left(
+-\sum_{j=1}^M\alpha_jp_{\cdot\cdot}(\boldsymbol{s}_j)e^{\log[\lambda_j]}
++\sum_{i=1}^n\log
+\left[
+\sum_{j=1}^M\alpha_j
+P_i(\boldsymbol{s}_j)e^{\log[\lambda(\boldsymbol{s}_j)]}
+\right]
+\right). \nonumber
+\end{eqnarray}
+\noindent
+
+The corresponding (approximate) log-likelihood is
+\begin{eqnarray}
+l(\lambda,\boldsymbol{\theta})
+&=&-\sum_{j=1}^M\alpha_jp_{\cdot\cdot}(\boldsymbol{s}_j)e^{\log[\lambda_j]}+\sum_{i=1}^n\log
+\left[
+\sum_{j=1}^M\alpha_j
+P_i(\boldsymbol{s}_j)
+e^{\log[
+\lambda(\boldsymbol{s}_j)]
+}
+\right]
+\end{eqnarray}
+
+\subsection{Laplace approximation}
+
+Now $\log\left[\lambda(\boldsymbol{s}_j)\right]=\boldsymbol{x}_j\boldsymbol{\beta}+\xi_j$ ($j=1,\ldots,M$), where $\boldsymbol{x}_j$ is a vector of explanatory variables at location $j$ and $\boldsymbol{\beta}$ is a parameter vector. We assume that $\boldsymbol{\xi}=(\xi_1,\ldots,\xi_M)$ is a GMRF with mean zero and variance $\boldsymbol{\Sigma}_\xi$:
+\begin{eqnarray}
+\boldsymbol{\xi}&\sim&\mbox{N}\left(\boldsymbol{0},\boldsymbol{\Sigma}_\xi\right).
+\end{eqnarray}
+Denote its pdf $f_\xi(\boldsymbol{\xi})$, and to reflect the fact that $\log\left[\lambda(\boldsymbol{s})\right]$, and hence $l(\lambda,\boldsymbol{\theta})$ depends on $\boldsymbol{\xi}$ and $\boldsymbol{\beta}$, we write the approximate log likelihood as $l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})$.
+
+The marginal likelihood (integrating out the GMRF) is then
+\begin{eqnarray}
+{\cal L}(\boldsymbol{\beta},\boldsymbol{\theta})
+&=&
+\int\cdots\int {\cal L}(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})
+f_\xi(\boldsymbol{\xi})\;\partial\xi_1\cdots\partial\xi_M
+\end{eqnarray}
+\noindent
+where ${\cal L}(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})$ is Equation~(\ref{eq:L(lambda)}) written as a function of $\boldsymbol{\xi}$ and $\boldsymbol{\beta},$ rather than $\lambda$
+We approximate this using Laplace approximation:
+\begin{eqnarray}
+\tilde{{\cal L}}(\boldsymbol{\beta},\boldsymbol{\theta})&=&\sup_{\boldsymbol{\xi}}\left\{{\cal L}(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})f_\xi(\boldsymbol{\xi})\right\}\frac{(2\pi)^{\frac{M}{2}}}{|\boldsymbol{H}|^{\frac{1}{2}}}
+\end{eqnarray}
+\noindent
+where $\boldsymbol{H}$ is the matrix of second derivatives of $\log\left[{\cal L}(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})f_\xi(\boldsymbol{\xi})\right]$ with respect to $\boldsymbol{\xi}$ (see below).
+
+\subsection{Derivatives of $\log\left[{\cal L}(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})f_\xi(\boldsymbol{\xi})\right]$}
+
+We write $\log\left[{\cal L}(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})f_\xi(\boldsymbol{\xi})\right]$ as $l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})+\log\left[f_\xi(\boldsymbol{\xi})\right]$ and calculatethe derivatives of $l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})$ and $\log\left[f_\xi(\boldsymbol{\xi})\right]$.
+
+\subsubsection{Derivatives of $l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})$}
+
+Since $\frac{\partial l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})}{\partial\xi_j}=\frac{\partial l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})}{\partial\log[\lambda_j]}\frac{\partial\log[\lambda_j]}{\partial\xi_j}=\frac{\partial l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})}{\partial\log[\lambda_j]}$, it is convenient to work in terms of $\frac{\partial l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})}{\partial\log[\lambda_j]}$ below, and for brevity we write $l(\boldsymbol{\xi},\boldsymbol{\beta},\boldsymbol{\theta})$ as $l$. Now differentiate with respect to $\log[\lambda_j]$ (i.e., $\log[\lambda(\boldsymbol{s}_j)]$ for $j=1,\ldots,M$), noting that $\frac{\partial\lambda_j}{\partial\log[\lambda_j]}=\lambda_j$:
+\begin{eqnarray}
+\frac{\partial l}{\partial\log[\lambda_j]}
+&=&
+-\alpha_j\lambda_jp_{\cdot\cdot}(\boldsymbol{s}_j) 
++\sum_{i=1}^n
+\frac{\alpha_j\lambda_jP_i(\boldsymbol{s}_j)}
+{
+\sum_{j^*=1}^M\alpha_{j^*}\lambda_{j^*}P_i(\boldsymbol{s}_{j^*})
+} \nonumber \\
+&=&-\alpha_j\lambda_jp_{\cdot\cdot}(\boldsymbol{s}_j) 
++
+\alpha_j\lambda_j
+\left\{
+\sum_{i=1}^n
+\frac{P_i(\boldsymbol{s}_j)}
+{
+\sum_{j^*=1}^M\alpha_{j^*}\lambda_{j^*}P_i(\boldsymbol{s}_{j^*})
+}
+\right\}
+\end{eqnarray}
+%\noindent
+%and
+%\begin{eqnarray}
+%\frac{\partial l(\lambda,\boldsymbol{\theta})}{\partial\lambda_j}&=&\frac{1}{\lambda_j}\frac{\partial l(\lambda,\boldsymbol{\theta})}{\partial\log[\lambda_j]}
+%\end{eqnarray}
+
+\begin{eqnarray}
+\frac{\partial^2l}{\partial\log[\lambda_j]^2}
+&=&-\alpha_j\lambda_jp_{\cdot\cdot}(\boldsymbol{s}_j) 
++
+\alpha_j\lambda_j
+\left\{
+\frac{P_i(\boldsymbol{s}_j)}
+{
+\sum_{j^*=1}^M\alpha_{j^*}\lambda_{j^*}P_i(\boldsymbol{s}_{j^*})
+}
+\right\} \nonumber \\
+& &+\alpha_j\lambda_j
+\left\{
+-\alpha_j\lambda_j
+\sum_{i=1}^n
+\frac{P_i(\boldsymbol{s}_j)^2}
+{\left[
+\sum_{j^*=1}^M\alpha_{j^*}\lambda_{j^*}P_i(\boldsymbol{s}_{j^*})
+\right]^2}
+\right\}
+\end{eqnarray}
+\begin{eqnarray}
+\frac{\partial^2l}{\partial\log[\lambda_j]\partial\log[\lambda_k]}
+&=&
+-\alpha_j\lambda_j
+\alpha_k\lambda_k
+\sum_{i=1}^n
+\frac{P_i(\boldsymbol{s}_j)P_i(\boldsymbol{s}_k)}
+{\left[
+\sum_{j^*=1}^M\alpha_{j^*}\lambda_{j^*}P_i(\boldsymbol{s}_{j^*})
+\right]^2}
+\end{eqnarray}
+%\noindent
+%and
+%\begin{eqnarray}
+%\frac{\partial^2 l(\lambda,\boldsymbol{\theta})}{\partial\lambda_j^2}&=&\frac{1}{\lambda_j}\frac{\partial^2 l(\lambda,\boldsymbol{\theta})}{\partial\log[\lambda_j]^2}-
+%\frac{1}{\lambda_j^2}\frac{\partial l(\lambda,\boldsymbol{\theta})}{\partial\log[\lambda_j]} \\
+%\frac{\partial^2 l(\lambda,\boldsymbol{\theta})}{\partial\lambda_j\partial\lambda_k}&=&\frac{1}{\lambda_j}\frac{\partial^2 l(\lambda,\boldsymbol{\theta})}{\partial\log[\lambda_j]\partial\log[\lambda_k]}
+%\end{eqnarray}
+
+\subsubsection{Derivatives of $\log\left[f_\xi(\boldsymbol{\xi})\right]$}
+
+\begin{eqnarray}
+\frac{\partial \log[f_\xi]}{\partial\boldsymbol{\xi}}
+&=&
+\boldsymbol{\Sigma}_\xi^{-1}\boldsymbol{\xi} \\
+\frac{\partial^2 \log[f_\xi]}{\partial\boldsymbol{\xi}\partial\boldsymbol{\xi}^t}
+&=&
+\boldsymbol{\Sigma}_\xi^{-1}.
+\end{eqnarray}
+\noindent
+
+
+\subsubsection{Elements of $\boldsymbol{H}$}
+
+%\begin{eqnarray}
+%\boldsymbol{H}_{jj}
+%=
+%\frac{\partial^2l}{\partial\log[\lambda_j]^2}f_\xi(\boldsymbol{\xi})
+%+2\frac{\partial l}{\partial\log[\lambda_j]}\frac{\partial f_\xi(\boldsymbol{\xi})}{\partial\xi_j}
+%+l\frac{\partial^2 f_\xi(\boldsymbol{\xi})}{\partial\xi_j^2}
+%\end{eqnarray}
+\begin{eqnarray}
+\boldsymbol{H}_{jk}
+=
+\frac{\partial^2l}{\partial\log[\lambda_j]\partial\log[\lambda_k]}
++\frac{\partial^2 f_\xi(\boldsymbol{\xi})}{\partial\xi_j\partial\xi_k}
+\end{eqnarray}
+
+
+\end{document}
+
