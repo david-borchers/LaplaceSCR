@@ -25,7 +25,7 @@ mesh=mesh0
 covariates(mesh)$lambda = gmrf$lambda
 plotcovariate(mesh,covariate="lambda",contour=FALSE)
 plot(dets,add=TRUE) # ... with detectors overlaid
-gmrf$approx.E.N
+gmrf$E.N
 summary(gmrf$lp)
 xi = gmrf$xi
 Sigma.xi = gmrf$Sigma.xi

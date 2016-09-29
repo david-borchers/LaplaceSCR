@@ -70,15 +70,11 @@ scr.derivs=function(xi, Sigma.xi, scr.list) {
 #'
 #' @description  Calculates the joint SCR and GMRF log-likelihood.
 #'
-#' @param alpha The integration weight attachced to each mesh point: a vector of length M
-#' @param lambda The Poisson intensity at each mesh point: a vector of length M
-#' @param gtk A KxM matrix with each row corresponding to a detector and each column to a mesh point 
-#' (in the same order as the rows in mesh)
 #' @param xi values of GMRF at each mesh point: Mx2 matrix with x- and y- coordinates of mesh points in
 #' first and second columns
 #' @param Sigma.xi MxM variance-covariance matrix of xi.
-#' @param capthist A capture history object in the form required by package \code{secr}. Currently only 
-#' ONE SESSION capture histories are supported.
+#' @param scr.list List of things needed to calculate likelihood, that do not involve xi or Sigma.xi. 
+#' (See \link{make.scr.list}.)
 #' 
 #' @return Value of log-likelihood
 #' 
@@ -109,9 +105,38 @@ scr.loglik=function(xi, Sigma.xi, scr.list) {
 }
 
 
+#' @title Set up list for SCR likelihood calculation
+#'
+#' @description  Calculates components of an SCR likelihood that do not involve the GMRF.
+#'
+#' @param capthist A capture history object in the form required by package \code{secr}. Currently only 
+#' ONE SESSION capture histories are supported.
+#' @param mesh What library(\code{secr}) calls a 'mask': regular grid of points that approximates the
+#' continous space on which activity centres could occur. There are M mesh points.
+#' @param g0 Intercept parameter of detection function (for multi-catch traps) or encounter rate (for
+#' count detectors).
+#' @param g0 Scale parameter of half-normal detection function (for multi-catch traps) or encounter rate (for
+#' count detectors)
+#' @param base.lp Log intensity (log denisty) associated with each mesh point, excluding the GMRF.
+#' 
+#' @return A list with these elements: 
+#' \itemize{
+#'  \item{alpha}{Integration weights associated with each mesh point}
+#'  \item{p..s}{Probability of detection by any detector, for activity centres at each mesh point 
+#'  (vecotr of length M)}
+#'  \item{Pi.s}{For each of n detected individuals, the rows of this matrix contain the probability of 
+#'  obtaining the observed capture history, for all M possible activity centre locations (mesh points) 
+#'  (nxM matrix).}
+#'  \item{base.lp}{Log intensity (log denisty) associated with each mesh point, excluding the GMRF}
+#'  }
+#' 
+#' @references David and Finn's document ``SCR Likelihood with a spatial log Gaussian Cox process and 
+#' GMRF''.
+#'
+#' @examples
+#' 
+#' @export
 make.scr.list=function(capthist, mesh, g0, sigma, base.lp=0) {
-  # Calculate some things needed in likelihood and Hessian that do not depend on lambda
-  # -----------------------------------------------------------------------------------
   M=dim(mesh)[1] # number of mesh points
   alpha=rep(1/M,M) # integration weights
   
@@ -221,26 +246,6 @@ count.log.Pi.s = function(comb.capthist,er) {
 #' @param center Logical. If TRUE, realised GMRF values are centred about zero, else not
 #' 
 #' @examples
-#' library(secr)
-#' # create the detectors
-#' spacing=20
-#' dets = make.grid(nx=5, ny=5, spacing=spacing)
-#' plot(dets,border=0)
-#' # set normal detection function parameters
-#' g0=0.5; sigma=spacing
-#' # create the mesh
-#' mesh = make.mask(dets, buffer=4*sigma, nx=20, ny=20, type="trapbuffer")
-#' 
-#' # make GMRF with speficied variance and covariance range to mesh, such that E(N)=100
-#' gmrf=make.gmrf(mesh,sigma.xi=1,covrange=300,E.N=100,seed=2016)
-#' # Plot covariance matrix:
-#' M=dim(mesh)[1]
-#' image.plot(1:M,1:M, gmrf$Sigma.xi, main="GMRF Variance-covariance")
-#' covariates(mesh)$lambda = gmrf$lambda
-#' sum(covariates(mesh)$lambda*attributes(mesh)$area) # check this equals N
-#' plotcovariate(mesh,covariate="lambda",contour=FALSE) # Look at it
-#' plot(dets,add=TRUE) # ... with detectors overlaid
-#' 
 make.gmrf=function(mesh, sigma.xi, covrange, E.N=NULL, seed=NULL, center=TRUE) {
   # calculate distances between mesh points
   mdist=distances(mesh,mesh)
@@ -253,28 +258,18 @@ make.gmrf=function(mesh, sigma.xi, covrange, E.N=NULL, seed=NULL, center=TRUE) {
   # generate GMRF variates
   set.seed(seed=seed)
   xi = as.vector(rmvnorm(1,mean=mu.xi,sigma=Sigma.xi))
-  if(center) {
-    meanxi=mean(xi)
-    xi=xi-meanxi
-  }
 
-  a = attributes(mesh)$area # area of each mesh cell
-  if(is.null(E.N)) {
-    if(!is.element("lambda",names(covariates(mesh)))) {
-      lp=0 + meanxi # systematic part of linear predictor
-    } else {
-      lp=log(covariates(mesh)$lambda) + meanxi - (sigma.xi^2)/2 # systematic part of linear predictor
-    }
-  } else {
-    lambda0 = E.N/(a*dim(mesh)[1])
-    if(!is.element("lambda",names(covariates(mesh)))) {
-      lp = log(lambda0) + meanxi - (sigma.xi^2)/2 # systematic part of linear predictor
-    } else {
-      lp = log(covariates(mesh)$lambda*lambda0/mean(covariates(mesh)$lambda)) + meanxi - (sigma.xi^2)/2 # systematic part of linear predictor
-    }
-  }
+  a = attributes(mesh)$area # area of each mesh cell (must all be the same)
+  meanxi=mean(xi)
+  if(center) xi=xi-meanxi
 
+  M = length(xi)
+  if(!is.element("lambda",names(covariates(mesh)))) covariates(mesh)$lambda = rep(1,M)
+  mean.lambda = mean(covariates(mesh)$lambda * exp(xi))
+  lp.add = log(E.N) - log(a) - log(M) - log(mean.lambda)
+  lp = log(covariates(mesh)$lambda) + lp.add
+  
   lambda = exp(lp + xi); sum(lambda*a)
   
-  return(list(lambda=lambda, xi=xi, lp=lp, Sigma.xi=Sigma.xi, approx.E.N=sum(lambda*a)))
+  return(list(lambda=lambda, xi=xi, lp=lp, Sigma.xi=Sigma.xi, E.N=sum(lambda*a)))
 }
