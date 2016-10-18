@@ -1,4 +1,32 @@
-.Rproj.user
+/.project
+
+#
+# ESS Mod GIT : files to be ignored
+#
+
+
+#
+# R settings that are strictly local
+#
+
+directories.R
+
+#
+# R temporary files
+#
+
 .Rhistory
-.RData
-.Ruserdata
+
+#
+# TEX temporary files
+#
+
+*.log
+*.aux
+*.out
+*.bbl
+*.lof
+*.synctex.gz
+*.toc
+.Rproj.user
+*.blg
