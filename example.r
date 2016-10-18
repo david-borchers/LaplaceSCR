@@ -2,6 +2,7 @@ library(secr)
 library(mvtnorm)
 
 source("SCRutilities.r") # David's utility functions for SCR
+source("laplaceSCRfns.r") # David's utility functions for SCR likelihood derivatives
 library(fields) # needed for utility functions
 
 # set detector type
@@ -41,8 +42,9 @@ points(pop$x,pop$y,pch=19,cex=0.25)
 plot(dets,add=TRUE)
 dim(pop)[1] # check simulated population size
 
-# Generate capture histories
-# first set number of occasions
+## Generate capture histories
+## first set number of occasions
+nt <- 5
 capthist=sim.capthist(dets,popn=pop, detectpar=list(g0=g0,sigma=sigma), noccasions=nt, nsessions=1,seed=12345)
 summary(capthist)
 n=dim(capthist)[1]
@@ -79,6 +81,16 @@ plot(fac,ll.gmrf,type="l",main="gmrf component of joint likelihood") # (must alw
 # Calculate the Hessian and other derivatives:
 # ===========================================
 derivs=scr.derivs(xi, Sigma.xi, scr.list)
+
+covariates(mesh)$hessian1 <- eigen(derivs$second.l)$vectors[,1]
+plotcovariate(mesh,covariate="hessian1")
+covariates(mesh)$hessian1 <- eigen(derivs$second.l)$vectors[,376]
+plotcovariate(mesh,covariate="hessian1")
+
+plot(eigen(-derivs$second.l+derivs$second.loggmrf)$values)
+plot(1/eigen(-derivs$second.l+derivs$second.loggmrf)$values)
+covariates(mesh)$hessian1 <- eigen(-derivs$second.l+derivs$second.loggmrf)$vectors[,100]
+plotcovariate(mesh,covariate="hessian1")
 
 # Plot the first derivatives of l:
 covariates(mesh)$first.l=as.vector(derivs$first.l)
